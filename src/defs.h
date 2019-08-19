@@ -29,11 +29,12 @@
 
 const double brentAcc = 1.0e-10;
 const gsl_mode_t tMode = 8;
-const int maxIter = 50;
+const int maxIter = 250;
 
 constexpr double one_third = 1.0 / 3.0;
 constexpr double two_third = 2.0 / 3.0;
 constexpr double one_over_ts = 1.0 / 27.0;
+constexpr double four_over_ts = 4.0 / 27.0;
 
 constexpr double PI = 3.141592653589793238463;
 constexpr double RAD_TO_DEG = 180.0 / PI;

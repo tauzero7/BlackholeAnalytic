@@ -19,7 +19,7 @@
  *   GNU Scientific Library
  * 
  * 
- * @copyright (c) 2017 Thomas Mueller
+ * @copyright (c) 2017-2018 Thomas Mueller
  *
  * This file is part of the BlackholeAnalytic.
  * 
@@ -43,6 +43,7 @@
 #include <iostream>
 #include <cmath>
 #include <cassert>
+#include <complex>
 
 #include "defs.h"
 
@@ -51,6 +52,20 @@
 #include <gsl/gsl_sf_ellint.h>
 #include <gsl/gsl_sf_elljac.h>
 #include <gsl/gsl_integration.h>
+
+/**
+ * @brief Convert degree into radians value
+ * @param angle_in_degree
+ */
+double radians(double angle_in_degree);
+
+
+/**
+ * @brief Convert radians into degree value
+ * @param angle_in_radians
+ */
+double degrees(double angle_in_radians);
+
 
 /**
  * @brief Use Brent method to find root.
@@ -74,9 +89,10 @@ double gslIntegral(double function(double, void*), void *params,
 
 /**
  * @brief Calculate a² parameter depending on xi and ksi.
- * @param xi
- * @param ksi
- * @return a^2
+ * @param xi     Initial scaled observer position xi = rs/ri
+ * @param ksi    Initial angle w.r.t. local tetrad (radians)
+ * 
+ * @return a^2 = xi * xi * (1 - xi) / sin(ksi)^2
  */
 double calcAqua(const double xi, const double ksi);
 
@@ -85,7 +101,7 @@ double calcAqua(const double xi, const double ksi);
  * @brief Calculate critical angle depending on observer position xi.
  *   The critical angle is given with respect to the direction to the black hole.
  * 
- * @param xi    Observer position.
+ * @param xi    Initial scaled observer position.
  * @param ksi   Reference to critical angle (in radians)
  * @return true if critical angle exists
  */
@@ -202,6 +218,10 @@ void getKsiAndTFromDistance(const double xi, const int n, double &ksi, double &T
 double getKsiFromEndpoints(const double xi, const double xf, const double phi);
 
 
+double getKsiFromEndpoints(const double xi, const double xf, const double phi,
+    double ksi_low, double ksi_high);
+
+
 /**
  * @brief Calculate azimuth angle phi for a null geodesic at the point of
  *   closest approach to the black hole.
@@ -249,6 +269,9 @@ double phiInfty(double xi, void* params);
  * @param params
  */
 double phiInfty_impl(double ksi, void *params);
+
+
+std::complex<double> fkcompl(std::complex<double> val, double m);
 
 
 #endif // BH_ANALYTIC_H

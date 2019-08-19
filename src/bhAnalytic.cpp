@@ -2,7 +2,7 @@
  * @file    bhAnalytic.cpp
  * @author  Thomas Mueller
  * 
- * @copyright (c) 2017 Thomas Mueller
+ * @copyright (c) 2017-2018 Thomas Mueller
  *
  * This file is part of the BlackholeAnalytic.
  * 
@@ -22,6 +22,16 @@
 
 #include <cassert>
 #include "bhAnalytic.h"
+
+
+double radians(double angle_in_degree) {
+    return angle_in_degree * DEG_TO_RAD;
+}
+
+
+double degrees(double angle_in_radians) {
+    return angle_in_radians * RAD_TO_DEG;
+}
 
 
 int gslBrent(double function(double, void*), void *params,  
@@ -189,9 +199,12 @@ double getKsiFromEndpoints(const double xi, const double xf, const double phi) {
     int n = fmod(phi, PI) + 1;
     double ksi_low = getKsiFromDistance(xi, n) + 1e-9;
     double ksi_hi  = calcKsiPhiInfty(xi, phi);
-    //std::cerr << ksi_low << " " << ksi_hi << std::endl;    
-    //std::cerr << calcXf_impl(ksi_low, &par) << std::endl;
-    //std::cerr << calcXf_impl(ksi_hi, &par) << std::endl;
+    ksi_low = 1e-12;
+    if (ksi_low > ksi_hi) std::swap(ksi_low, ksi_hi);
+    
+    std::cerr << ksi_low << " " << ksi_hi << std::endl;    
+    std::cerr << calcXf_impl(ksi_low, &par) << std::endl;
+    std::cerr << calcXf_impl(ksi_hi, &par) << std::endl;
 
     double ksi = 0.0;
     int status = gslBrent(calcXf_impl, &par, ksi_low, ksi_hi, ksi);
@@ -200,6 +213,20 @@ double getKsiFromEndpoints(const double xi, const double xf, const double phi) {
     }
     return ksi;
 }
+
+
+double getKsiFromEndpoints(const double xi, const double xf, const double phi,
+    double ksi_low, double ksi_high)
+{
+    geod_params par = {xi, xf, phi};
+    double ksi = 0.0;
+    int status = gslBrent(calcXf_impl, &par, ksi_low, ksi_high, ksi);
+    if (status) {
+        fprintf (stderr, "failed, gsl_errno=%d ... %s:%d\n", status, __FILE__, __LINE__);
+    }
+    return ksi;
+}
+
 
 
 double getPhiMin(const double xi, const double xmin, const double ksi) {
@@ -259,22 +286,98 @@ double calcKsiPhiInfty(const double xi, const double phif) {
 double calcXf(const double xi, const double ksi, const double phi) {
     assert(xi > 0.0);
   
-    double x1, x2, x3, m2;
-    calcXs(calcAqua(xi,ksi), x1, x2, x3);
-    m2 = (x1 - x3) / (x2 - x3);
+    double x1, x2, x3, m2, a2;
+    a2 = calcAqua(xi,ksi);
     
-    double u = 0.5 * sqrt(x2 - x3) * phi;
+    if (a2 <= 4.0/27.0) {
+        calcXs(a2, x1, x2, x3);
+        m2 = (x1 - x3) / (x2 - x3);
+        
+        double u = 0.5 * sqrt(x2 - x3) * phi;
 
-    double sn,cn,dn;
-    gsl_sf_elljac_e(u, m2, &sn, &cn, &dn);
+        double sn,cn,dn;
+        gsl_sf_elljac_e(u, m2, &sn, &cn, &dn);
 
-    double f1 = sn * sqrt((x2-x1)*(x2-x1)*(xi-x3)/((x2-x3)*(xi-x1)*(xi-x1)));
-    double f2 = sqrt((xi-x2)/(xi-x1)) * cn * dn;
-    double f3 = 1.0-(x1-x3)*(xi-x2)/(x2-x3)/(xi-x1) * sn * sn;
+        double f1 = sn * sqrt((x2-x1)*(x2-x1)*(xi-x3)/((x2-x3)*(xi-x1)*(xi-x1)));
+        double f2 = sqrt((xi-x2)/(xi-x1)) * cn * dn;
+        double f3 = 1.0-(x1-x3)*(xi-x2)/(x2-x3)/(xi-x1) * sn * sn;
 
-    double SN = (f1+f2)/f3;
-    double SN2 = SN * SN;
-    return (x2 - x1 * SN2) / (1.0 - SN2);
+        double pm = 1.0;
+        if (ksi < 0.5*PI) {
+            pm = -1.0;
+        }
+
+        double SN = (f1 + pm * f2)/f3;
+        double SN2 = SN * SN;
+        return (x2 - x1 * SN2) / (1.0 - SN2);
+    }
+    else {
+        double q    = a2 * 0.5 - one_over_ts;
+        double rho  = sign(q) * one_third;
+        double psi  = acosh(q / pow(rho,3.0));
+        double psi3 = psi * one_third;
+    
+        double sq3  = sqrt(3.0);
+        double esdr = 1.0/sqrt(3.0);
+        
+        double ksiCrit;
+        calcKsiCrit(xi, ksiCrit);
+
+        std::complex<double> x1(rho * cosh(psi3) + one_third,  rho * sq3 * sinh(psi3));
+        std::complex<double> x2(-2.0 * rho * cosh(psi3) + one_third, 0);
+        std::complex<double> x3(rho * cosh(psi3) + one_third, -rho * sq3 * sinh(psi3));
+
+        std::complex<double> m  = sqrt((x1 - x3) / (x2 - x3));
+        std::complex<double> ms = sqrt(1.0 - m * m);
+        std::complex<double> m1 = (1.0 - ms) / (1.0 + ms);
+
+        double chi = tanh(psi3) * esdr;
+
+        double m2   = chi / (1.0 + sqrt(1.0 + chi * chi));
+        double zeta = sqrt(1.0 + m2 * m2);
+        double m3   = m2 / zeta;
+
+        std::complex<double> x_i(xi,0.0);
+
+        std::complex<double> cnvm = sqrt((x2 - x3) / (x_i - x1));
+        std::complex<double> dnvm = sqrt((x_i - x3) / (x_i - x1));
+
+        double ezeta2 = 1.0 / (zeta * zeta);
+
+        std::complex<double> cnz0c = m1 * (cnvm + dnvm + (1.0+ms*cnvm))/(cnvm + dnvm - (1.0+ms*cnvm));
+        std::complex<double> snz0c = sqrt(1.0 - cnz0c * cnz0c);
+        std::complex<double> dnz0c = sqrt(1.0 - snz0c * snz0c * ezeta2);
+
+        std::complex<double> sn,cn,dn;
+
+        double SN,CN,DN;
+        double z;
+        if (rho < 0.0) {
+            z = 0.5 * phi * sqrt(-3.0*rho*cosh(psi3))*pow(1.0+chi*chi,0.25);            
+            gsl_sf_elljac_e(z, m3*m3, &SN, &CN, &DN);
+            sn = std::complex<double>(0.0,SN/CN);
+            cn = std::complex<double>(1.0/CN,0.0);
+            dn = std::complex<double>(DN/CN,0.0);
+        }
+        else {
+            z = 0.5 * phi *sqrt(3.0*rho*cosh(psi3))*pow(1.0+chi*chi,0.25);            
+            gsl_sf_elljac_e(z, ezeta2, &SN, &CN, &DN);
+            sn = SN;
+            cn = CN; 
+            dn = DN;
+        }
+
+        double pm = 1.0;
+        if (ksi < ksiCrit) pm = -1.0;
+
+        std::complex<double> SDc = (sn*cnz0c*dnz0c + pm*snz0c*cn*dn)/(dn*dnz0c - pm*ezeta2*sn*snz0c*cn*cnz0c);
+        std::complex<double> i(0,1.0);
+
+        std::complex<double> snum = (m2+i)/zeta*SDc/(1.0+i*m2*ezeta2*SDc*SDc);
+        std::complex<double> numerator = x2 - x1 * snum * snum;
+        std::complex<double> denominator  = 1.0 - snum * snum;
+        return real(numerator / denominator);
+    }
 }
 
 
@@ -399,32 +502,50 @@ double ksi_impl(double ksi, void *params) {
 double phiInfty(double xi, void* params) {
     double ksi = *(static_cast<double*>(params));
       
-    double param_q = 0.5 * calcAqua(xi,ksi) - one_over_ts;
+    double a2 = calcAqua(xi,ksi);
+    double param_q = 0.5 * a2 - one_over_ts;
     double param_rho = sign(param_q) * one_third;
-    double psi       = acos(param_q / pow(param_rho, 3.0));
-    //std::cerr << ksi << " " << param_q << " " << param_rho << " " << param_q / pow(param_rho, 3.0) << " " << psi << std::endl;
+    double psi;
     
-    double x1 = 2.0 * param_rho * cos((PI + psi) * one_third) + one_third;
-    double x2, x3;
-    if (param_rho > 0.0) {
-        x2 =  2.0 * param_rho * cos((PI - psi) * one_third) + one_third;
-        x3 = -2.0 * param_rho * cos(psi * one_third) + one_third;
+    if (a2 <= four_over_ts) {
+        
+        psi = acos(param_q / pow(param_rho, 3.0));
+        double x1 = 2.0 * param_rho * cos((PI + psi) * one_third) + one_third;
+        double x2, x3;
+        if (param_rho > 0.0) {
+            x2 =  2.0 * param_rho * cos((PI - psi) * one_third) + one_third;
+            x3 = -2.0 * param_rho * cos(psi * one_third) + one_third;
+        }
+        else {
+            x3 =  2.0 * param_rho * cos((PI - psi) * one_third) + one_third;
+            x2 = -2.0 * param_rho * cos(psi * one_third) + one_third;
+        }
+        std::cerr << x1 << " " << x2 << " " << x3 << std::endl;
+        
+        double m = sqrt((x1 - x3) / (x2 - x3));
+
+        double F1 = gsl_sf_ellint_F(asin(1.0 / (m * sqrt(x2 / x1))), m, 8);
+        double F2 = gsl_sf_ellint_F(asin(1.0 / (m * sqrt((xi - x2) / (xi - x1)))), m, 8);
+      
+        double pm = 1.0;
+        if (ksi < 0.5 * PI) pm = -1.0;
+
+        return 2.0 / sqrt(x2 - x3) * (F1 + pm * F2);
     }
     else {
-        x3 =  2.0 * param_rho * cos((PI - psi) * one_third) + one_third;
-        x2 = -2.0 * param_rho * cos(psi * one_third) + one_third;
-    }
-    //std::cerr << x1 << " " << x2 << " " << x3 << std::endl;
-    
-    double m = sqrt((x1 - x3) / (x2 - x3));
-
-    double F1 = gsl_sf_ellint_F(asin(1.0 / (m * sqrt(x2 / x1))), m, 8);
-    double F2 = gsl_sf_ellint_F(asin(1.0 / (m * sqrt((xi - x2) / (xi - x1)))), m, 8);
-  
-    double pm = 1.0;
-    if (ksi > 0.5 * PI) pm = -1.0;
-
-    return 2.0 / sqrt(x2 - x3) * (F1 + pm * F2);
+        psi = acosh(param_q / pow(param_rho, 3.0));
+        
+        std::complex<double> x1(param_rho * cosh(psi*one_third) + one_third, sqrt(3.0)*sinh(psi * one_third));
+        std::complex<double> x3(param_rho * cosh(psi*one_third) + one_third,-sqrt(3.0)*sinh(psi * one_third));
+        std::complex<double> x2(-2.0*param_rho * cosh(psi*one_third) + one_third, 0);
+        
+        std::complex<double> u0 = sqrt(x2 / x1);
+        std::complex<double> u1 = sqrt((xi - x2) / (xi - x1));
+        std::complex<double>  m = sqrt((x1 - x3) / (x2 - x3));
+        std::cerr << m << std::endl;
+        
+        // TODO
+    }    
 }
 
 
@@ -436,3 +557,28 @@ double phiInfty_impl(double ksi, void *params) {
     return phiInfty(xi, &ksi) - phif;
 }
 
+
+std::complex<double> fkompl(std::complex<double> val, double m) {
+    double x = real(val);
+    double w = imag(val);
+
+    double xw = x*x+w*w;
+    double sq = sqrt(pow(x,4.0)+2.0*w*w*x*x-2.0*x*x+pow(w,4.0)+2.0*w*w+1.0);
+
+    double ksi2  = 0.5*(xw+1.0-sq);
+    double zeta2 = 0.5*(xw-1.0+sq);
+
+    double ms = sqrt(1.0-m*m);
+    double b = -( (1.0-ksi2)/ksi2 + m*m*zeta2/ksi2 - ms*ms );
+    double c = -ms*ms* (1.0-ksi2)/ksi2;
+
+    double yplus = 0.5*(-b+sqrt(b*b-4.0*c));
+
+    double u = 1.0/sqrt(1.0+yplus);
+    double v = sqrt(((yplus+1.0)*ksi2-1.0)/(m*m-1.0+(yplus-m*m+1.0)*ksi2));
+
+    u = gsl_sf_ellint_F(asin(u),m,tMode);
+    v = gsl_sf_ellint_F(asin(v),ms,tMode);
+
+    return (std::complex<double>(u,v));
+}
