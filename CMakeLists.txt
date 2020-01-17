@@ -41,3 +41,8 @@ set_target_properties(Ring  PROPERTIES LINK_FLAGS "-Wl,-rpath ${GSL_LIB_DIR}")
 add_executable(Geodesics main/geodesics.cpp ${bhsrc_files})
 target_link_libraries(Geodesics ${GSL_LIBS})
 set_target_properties(Geodesics  PROPERTIES LINK_FLAGS "-Wl,-rpath ${GSL_LIB_DIR}")
+
+
+add_executable(CalcKsi main/calcKsi.cpp  ${bhsrc_files})
+target_link_libraries(CalcKsi ${GSL_LIBS})
+set_target_properties(CalcKsi  PROPERTIES LINK_FLAGS "-Wl,-rpath ${GSL_LIB_DIR}")

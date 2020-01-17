@@ -81,5 +81,13 @@ int main(int argc, char* argv[]) {
         xi, ksi * RAD_TO_DEG, ksi);
     
     printf("===============================================================\n");
+    
+    xi = 2.0 / 30.0;
+    for(int i = 0; i < 90.0; i++) {
+        double alpha = (double)(i / 180.0 * M_PI);
+        ksi = getKsiFromEndpoints(xi, 2.0 / 21.24392316145961, 2.7976890803213794 + alpha);
+        fprintf(stdout, "%f %f %f %f\n", alpha, alpha / M_PI * 180.0, ksi, ksi / M_PI * 180.0);
+    }
+    
     return 0;
 }

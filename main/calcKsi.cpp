@@ -11,21 +11,25 @@ int main(int argc, char* argv[]) {
     // A geodesic starting at xi,phi=0 and ending at xi,phi=pi must start with
     // and initial direction ksi = ...
     
-    ksi = radians(30.0);
-    printf("%.12f\n", degrees(phiInfty(1e-7, &ksi)));
-    return 0;
+   // ksi = radians(180-30.0);
+   // printf("%.12f\n", (phiInfty(2/10., &ksi)));
+   // return 0;
     
     
     double rs = 2.0;
-    xi = rs / 4.0;
+    xi = rs / 10.0;
     calcKsiCrit(xi, ksiCrit);
     printf("ksi_crit = %.12f° ; %.12f°\n", degrees(ksiCrit), 180 - degrees(ksiCrit));
     printf("ksi_crit = %.12f ; %.12f\n", ksiCrit, PI - ksiCrit);
 
-
+    double x = atof(argv[1]);
+    double y = atof(argv[2]);
+    xf = rs / sqrt(x*x + y*y);
+    phi2 = atan2(y, x);
+/*
     xf = rs / atof(argv[1]);
     phi2 = atof(argv[2]);
-    
+  */  
     double ksi_lo = radians(atof(argv[3]));
     double ksi_hi = radians(atof(argv[4]));
     
