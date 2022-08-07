@@ -298,16 +298,16 @@ double calcXf(const double xi, const double ksi, const double phi) {
         double sn,cn,dn;
         gsl_sf_elljac_e(u, m2, &sn, &cn, &dn);
 
-        double f1 = sn * sqrt((x2-x1)*(x2-x1)*(xi-x3)/((x2-x3)*(xi-x1)*(xi-x1)));
-        double f2 = sqrt((xi-x2)/(xi-x1)) * cn * dn;
-        double f3 = 1.0-(x1-x3)*(xi-x2)/(x2-x3)/(xi-x1) * sn * sn;
+        double f1 = sn * sqrt((x2 - x1) * (x2 - x1) * (xi - x3) / ((x2 - x3) * (xi - x1) * (xi - x1)));
+        double f2 = sqrt((xi - x2) / (xi - x1)) * cn * dn;
+        double f3 = 1.0 - (x1 - x3) * (xi - x2) / (x2 - x3) / (xi - x1) * sn * sn;
 
         double pm = 1.0;
-        if (ksi < 0.5*PI) {
+        if (ksi < 0.5 * PI) {
             pm = -1.0;
         }
 
-        double SN = (f1 + pm * f2)/f3;
+        double SN = (f1 + pm * f2) / f3;
         double SN2 = SN * SN;
         return (x2 - x1 * SN2) / (1.0 - SN2);
     }

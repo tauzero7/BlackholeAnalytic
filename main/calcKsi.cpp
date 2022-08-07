@@ -8,45 +8,25 @@ int main(int argc, char* argv[]) {
     
     gsl_set_error_handler_off();
     
-    // A geodesic starting at xi,phi=0 and ending at xi,phi=pi must start with
+    // A geodesic starting at xi,phi=0 and ending at xf,phif must start with
     // and initial direction ksi = ...
-    
-   // ksi = radians(180-30.0);
-   // printf("%.12f\n", (phiInfty(2/10., &ksi)));
-   // return 0;
-    
-    
+       
+    double sn,cn,dn;
+    double u = atof(argv[1]);
+    double m = atof(argv[2]);
+    gsl_sf_elljac_e(u, m, &sn, &cn, &dn);
+    printf("%f %f %f\n", sn, cn, dn);
+    return 0;
+       
     double rs = 2.0;
-    xi = rs / 10.0;
-    calcKsiCrit(xi, ksiCrit);
-    printf("ksi_crit = %.12f° ; %.12f°\n", degrees(ksiCrit), 180 - degrees(ksiCrit));
-    printf("ksi_crit = %.12f ; %.12f\n", ksiCrit, PI - ksiCrit);
+    xi = rs / 10.0;    
+    xf = rs / atof(argv[1]);    
+    phi2 = radians(atof(argv[2]));
 
-    double x = atof(argv[1]);
-    double y = atof(argv[2]);
-    xf = rs / sqrt(x*x + y*y);
-    phi2 = atan2(y, x);
-/*
-    xf = rs / atof(argv[1]);
-    phi2 = atof(argv[2]);
-  */  
     double ksi_lo = radians(atof(argv[3]));
     double ksi_hi = radians(atof(argv[4]));
-    
     ksi = getKsiFromEndpoints(xi, xf, phi2, ksi_lo, ksi_hi);
-    printf("ksi = %.10f° (%.10f)\n\n", 
-        ksi * RAD_TO_DEG, ksi);
+    printf("ksi = %.10f° (%.10f)\n\n",  ksi * RAD_TO_DEG, ksi);
 
-
-    //xf = calcXf(xi, (atof(argv[1])), atof(argv[2]));
-    //printf("rf = %.12f\n", rs/xf);
-    
-    /*
-    ksi = atof(argv[1]);
-    phi2 = atof(argv[2]);
-    
-    xf = calcXf(xi, radians(ksi), phi2);
-    std::cout << rs / xf << std::endl;
-    */
     return 0;
 }

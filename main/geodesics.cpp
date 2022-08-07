@@ -27,12 +27,37 @@
 #include "bhAnalytic.h"
 
 
+void calc_geodesic(double ksi) {
+    double rs = 2.0;
+    double xi = rs / 10.0;
+    double ksiCrit;
+    calcKsiCrit(xi, ksiCrit);
+    fprintf(stderr, "ksi_crit = %.12f° ; %.12f°\n", degrees(ksiCrit), 180 - degrees(ksiCrit));
+    fprintf(stderr, "ksi_crit = %.12f ; %.12f\n", ksiCrit, PI - ksiCrit);
+
+    double phiinf = phiInfty(xi, &ksi);
+    
+    for(double phi = 0.0; phi < phiinf; phi += 0.01) {
+        double xf = calcXf(xi, ksi, phi);
+        double rf = rs / xf;
+        double x = rf * cos(phi);
+        double y = rf * sin(phi);
+        fprintf(stdout, "%f %f %f\n", x, y, phi);
+    }
+}
+
+
 int main(int argc, char* argv[]) {
     double xi, ksi, ksiCrit, xf, phi1, phi2, xmin, phimin, phiinf;
     
     gsl_set_error_handler_off();
     
-    printf("===============================================================\n");
+    fprintf(stderr, "===============================================================\n");
+
+#if 1
+    calc_geodesic(radians(atof(argv[1])));
+    return 0;
+#endif
     
     // A geodesic with starting position xi, final position xf, and initial
     // direction ksi covers an azimuthal angle phi1 (and phi2)
